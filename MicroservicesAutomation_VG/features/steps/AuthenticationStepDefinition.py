@@ -1,18 +1,8 @@
-import requests
-import json
+from behave import given, when, then
 
-from os.path import dirname, abspath
-from behave import given, when, then, step
-from hamcrest import assert_that, equal_to
-from features.ucommonModules.commonModules import custom_httpMethods
-
-http_request_header = {}
-http_request_body = {}
-http_request_url_query_param = {}
-global_general_variables = {}
-
-
-
+from features.ucommonModules.commonModules import readValuesFromFeatures, http_request_body, http_request_header, \
+    global_general_variables, http_request_url_query_param, custom_http_Methods, validateExpectedJson, \
+    expectedJsonResponse
 
 
 @given(u'Set basic web application url is "{basic_app_url}"')
@@ -22,20 +12,12 @@ def step_impl(context, basic_app_url):
 
 @given(u'Set basic user details as "{particular}" and "{value}" below')
 def step_impl(context, particular, value):
-    for row in context.table:
-        temp_value = row['value']
-        global_general_variables[row['particular']] = temp_value
-        if 'empty' in temp_value:
-            global_general_variables[row['particular']] = ''
+    readValuesFromFeatures(context, particular, value, 'http_request_body')
 
 
-@then(u'Set basic user details as "{particular}" and "{value}" below')
-def step_impl(context, particular, value):
-    for row in context.table:
-        temp_value1 = row['value']
-        global_general_variables[row['particular']] = temp_value1
-        if 'null' in temp_value1:
-            global_general_variables[row['particular']] = None
+@then(u'Set basic user details as "{expectedKey}" and "{expectedValue}" below')
+def step_impl(context, expectedKey, expectedValue):
+    readValuesFromFeatures(context, expectedKey, expectedValue, 'expectedJsonResponse')
 
 
 @when(u'Set HEADER param request content type as "{header_content_type}"')
@@ -81,39 +63,8 @@ def step_impl(context, query_param):
 @when(u'Raise "{http_request_type}" HTTP request')
 def step_impl(context, http_request_type):
     url_temp = global_general_variables['basic_application_URL']
-
-
-custom_httpMethods(http_request_type, url_temp, http_request_header, http_request_url_query_param, http_request_body)
-
-
-# if 'GET' == http_request_type:
-#     url_temp += global_general_variables['GET_api_endpoint']
-#     http_request_body.clear()
-#     global_general_variables['response_full'] = requests.get(url_temp,
-#                                                              headers=http_request_header,
-#                                                              params=http_request_url_query_param,
-#                                                              data=http_request_url_query_param)
-# elif 'POST' == http_request_type:
-#     url_temp += global_general_variables['POST_api_endpoint']
-#     http_request_url_query_param.clear()
-#     global_general_variables['response_full'] = requests.post(url_temp,
-#                                                               headers=http_request_header,
-#                                                               params=http_request_url_query_param,
-#                                                               json=http_request_body)
-# elif 'PUT' == http_request_type:
-#     url_temp += global_general_variables['PUT_api_endpoint']
-#     http_request_url_query_param.clear()
-#     global_general_variables['response_full'] = requests.put(url_temp,
-#                                                              headers=http_request_header,
-#                                                              params=http_request_url_query_param,
-#                                                              data=http_request_body)
-# elif 'DELETE' == http_request_type:
-#     url_temp += global_general_variables['DELETE_api_endpoint']
-#     http_request_body.clear()
-#     global_general_variables['response_full'] = requests.delete(url_temp,
-#                                                                 headers=http_request_header,
-#                                                                 params=http_request_url_query_param,
-#                                                                 data=http_request_body)
+    custom_http_Methods(http_request_type, url_temp, http_request_header, http_request_url_query_param,
+                        http_request_body)
 
 
 @then(u'Valid HTTP response should be received')
@@ -126,8 +77,6 @@ def step_impl(context):
 def step_impl(context, expected_response_code):
     global_general_variables['expected_response_code'] = expected_response_code
     actual_response_code = global_general_variables['response_full'].status_code
-    # pprint(global_general_variables['response_full'].json())
-
     if str(actual_response_code) == str(expected_response_code):
         print(actual_response_code)
         print(str(global_general_variables['response_full'].json()))
@@ -150,10 +99,12 @@ def step_impl(context):
         assert False, '***ERROR:  Null or none response body received'
 
 
-@when(u'Set BODY form param using basic user details')
-def step_impl(context):
-    http_request_body['username'] = global_general_variables['userName']
-    http_request_body['password'] = global_general_variables['password']
+@when(u'Set BODY form param using basic user details as "{key}" and "{value}" below')
+def step_impl(context, key, value):
+    readValuesFromFeatures(context, key, value, 'http_request_body')
+    print(http_request_body)
+    # http_request_body['username'] = global_general_variables['username']
+    # http_request_body['password'] = global_general_variables['password']
     # http_request_body['signup_firstname'] = global_general_variables['first_name']
     # http_request_body['signup_lastname'] = global_general_variables['last_name']
     # http_request_body['signup_gender'] = global_general_variables['gender']
@@ -305,24 +256,10 @@ def step_impl(context, new_first_name, new_last_name):
 @then(u'Response BODY parsing for "{body_parsing_for}" should be successful')
 def step_impl(context, body_parsing_for):
     current_json = global_general_variables['response_full'].json()
-    if 'GET__signup' == body_parsing_for:
-        print('Activity status               : ' + current_json['Additional message'])
+    if 'GET' == body_parsing_for:
+        validateExpectedJson(expectedJsonResponse, current_json, 'Yes')
     elif 'POST' == body_parsing_for:
-        # for row in context.table:
-        #     temp_value1 = row['ExpectedResponse']
-        # global_general_variables[row['Attribute']] = temp_value1
-        # if 'empty' in temp_value1:
-        #     global_general_variables[row['Attribute']] = ''
-        # elif 'null' in temp_value1:
-        #     global_general_variables[row['Attribute']] = None
-        # assert_that(readJson(), equal_to(current_json))
-        assert_that(global_general_variables['status'], equal_to(current_json['status']))
-        assert_that(global_general_variables['message'], equal_to(current_json['message']))
-        assert_that(global_general_variables['accessToken'], equal_to(current_json['accessToken']))
-        assert_that(global_general_variables['refreshToken'], equal_to(current_json['refreshToken']))
-
-
-print('')
+        validateExpectedJson(expectedJsonResponse, current_json, 'No')
 # elif 'POST_Error' == body_parsing_for:
 # for row in context.table:
 #     temp_value = row['ExpectedResponse']
